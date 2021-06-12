@@ -1,3 +1,3 @@
-module mbs/lang
+module mbs
 
 go 1.15
