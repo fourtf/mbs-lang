@@ -1,0 +1,30 @@
+Block(
+    WriteVar("a", Integer(123)),
+    ...
+
+    If(
+        ReadVar("c"),
+        Block(
+            Function("print", Arguments(
+                String("c is true")
+            ))
+        )
+    ),
+
+    If(
+        Operator("==", ReadVar("a"), Integer(123)),
+        ...
+    ),
+    ...
+
+    For(Noop, Boolean(false), Noop, Block()),
+
+    For(
+        WriteVar("e", Integer(1)),
+        Operator(ReadVar("e"), Integer(4)),
+        WriteVar("e",
+            Operator("+", ReadVar("e"), Integer(1))
+        ),
+        Block(Function("print", Arguments(String("e"))))
+    )
+)

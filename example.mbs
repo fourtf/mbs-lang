@@ -1,0 +1,32 @@
+a = 123;
+b = "abc";
+c = true;
+d = 4.2;
+
+if (c) {
+    print("c is true");
+}
+
+if (a == 123) {
+    print("a is 123");
+}
+
+if (c && true) {
+    print("c && true");
+}
+
+if (b == "abc") {
+    print("b is abc");
+}
+
+print(b + "123");
+
+for (;false;) {
+}
+
+for (e = 1; e < 4; e = e + 1) {
+    print("e");
+}
+
+input = readline();
+print(input);
