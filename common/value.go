@@ -15,3 +15,26 @@ func (b Boolean) Print() string {
 		return "false"
 	}
 }
+
+func (boolean Boolean) Eval() {}
+
+type String struct {
+	Data string
+}
+
+func (str String) Print() string { return "" }
+func (str String) Eval()         {}
+
+type Integer struct {
+	Data int64
+}
+
+func (integer Integer) Print() string { return "" }
+func (integer Integer) Eval()         {}
+
+type Float struct {
+	Data float64
+}
+
+func (float Float) Print() string { return "" }
+func (float Float) Eval()         {}
