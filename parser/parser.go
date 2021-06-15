@@ -26,6 +26,9 @@ func ParseWriteVar(code string) (string, Expr, error) {
 }
 
 func ParseExpression(expression string) (Expr, error) {
+	if exp, err := ParseOperator(expression); err == nil {
+		return exp, nil
+	}
 	if exp, err := ParseString(expression); err == nil {
 		return exp, nil
 	}
@@ -39,9 +42,6 @@ func ParseExpression(expression string) (Expr, error) {
 		return exp, nil
 	}
 	if exp, err := ParseFunction(expression); err == nil {
-		return exp, nil
-	}
-	if exp, err := ParseOperator(expression); err == nil {
 		return exp, nil
 	}
 	return nil, &ParseError{Message: "Couldn't parse to any expression"}
@@ -78,8 +78,49 @@ func ParseFloat(expression string) (Expr, error) {
 }
 
 func ParseFunction(expression string) (Expr, error) {
+	// name ( expr , expr , expr , expr )
+
 	// TODO
 	return nil, &ParseError{Message: "Couldn't parse the expression to a function"}
+}
+
+// ParseParentheses:  ( print ( "( )()()((" + "asd" ) )
+// ParseFunction:       print ( "( )()()((" + "asd" )
+// ParseParentheses:          ( "( )()()((" + "asd" )
+// ParseOperator:               "( )()+)((" + "asd"
+
+// ParseParentheses -> ParseFunction -> ParseString
+
+// ParseParentheses:  ( print ( "( )()()((" + "asd" ) )
+// ParseFunction:       print ( "( )()()((" + "asd" ) ) -> )
+// ParseOperator:               "( )()()((" + "asd" ) ) -> )
+
+// "( )()()((" + "asd" ) )
+
+// ParseParentheses -> ParseFunction -> ParseString
+
+func ParseParentheses(expression string) (Expr, error) {
+	// (
+	expression = stripWhitespace(expression)
+	expression, ok := stripPrefix(expression[:0], "(")
+	if !ok {
+		return nil, NewParseErrorExpected("(")
+	}
+
+	// expr
+	expr, err := ParseExpression(expression)
+	if err != nil {
+		return nil, err
+	}
+
+	// )
+	expression = stripWhitespace(expression)
+	expression, ok = stripPrefix(expression[:0], ")")
+	if !ok {
+		return nil, NewParseErrorExpected(")")
+	}
+
+	return expr, nil
 }
 
 var (
@@ -116,6 +157,10 @@ func (m *ParseError) Error() string {
 	return m.Message
 }
 
+func NewParseErrorExpected(expected string) *ParseError {
+	return &ParseError{Message: "Expected '" + expected + "'"}
+}
+
 var whitespaceRegex = regexp.MustCompile(`\s+`)
 
 // ParseName takes an input and returns one of:
@@ -141,4 +186,29 @@ func ParseCode(code string) (*Block, error) {
 	// - For
 
 	return nil, nil
+}
+
+var stripWhitespaceRegex = regexp.MustCompile(`^\s+`)
+
+// stripWhitespace strips all whitespace on the left of the string and returns a string without it.
+func stripWhitespace(s string) string {
+	loc := stripWhitespaceRegex.FindStringIndex(s)
+
+	if loc == nil {
+		return s
+	}
+
+	return s[loc[1]:]
+}
+
+// stripPrefix tries to remove a prefix from a string. Returns the stripped string and a bool indicating if it was
+// successful. Returns the original string if the prefix wasn't found.
+func stripPrefix(s, prefix string) (string, bool) {
+	// if strings.HasPrefix()
+
+	if strings.HasPrefix(s, prefix) {
+		return s[len(prefix):], true
+	}
+
+	return s, false
 }
