@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"bytes"
 	. "mbs/common"
 	"testing"
 
@@ -26,9 +25,9 @@ func TestParseNameNegative(t *testing.T) {
 }
 
 func testParseName(t *testing.T, code, resultCode, name string) {
-	xcode, xname, xerr := ParseName([]byte(code))
+	xcode, xname, xerr := ParseName(code)
 
-	if !bytes.Equal(xcode, []byte(resultCode)) || !bytes.Equal(xname, []byte(name)) || xerr != nil {
+	if xcode != resultCode || xname != name || xerr != nil {
 		t.Errorf(`got ("%s", "%s", %s) wanted ("%s", "%s", nil)`,
 			xcode, xname, xerr,
 			resultCode, name)
@@ -36,7 +35,7 @@ func testParseName(t *testing.T, code, resultCode, name string) {
 }
 
 func testParseNameNegative(t *testing.T, code string) {
-	_, _, err := ParseName([]byte(code))
+	_, _, err := ParseName(code)
 
 	if err == nil {
 		t.Errorf(`expected error when parsing "%s"`, code)
@@ -137,17 +136,13 @@ func checkErrorAndCompareExpressions(t *testing.T, err error, expr Expr, expecte
 }
 func TestParseWriteVar(t *testing.T) {
 	expectedName := "a"
-	expectedCode := []byte("b=456;")
+	expectedCode := "b=456;"
 	expectedExpr := Integer{Data: 123}
 
-	code, expr, err := ParseWriteVar([]byte(" a = 123; b = 456;"))
+	code, expr, err := ParseWriteVar(" a = 123; b = 456;")
 
-	if code == nil || expr == nil || err != nil {
+	if code != expectedCode || expr == nil || err != nil {
 		t.Errorf(`got (Code: "%s", Expr: "%s", Err: %s) wanted ("%s", "%+v", nil)`, code, expr, err, expectedCode, expectedExpr)
-	}
-
-	if !bytes.Equal(expectedCode, code) {
-		t.Errorf(`Expected code doesn't match actual code!\n Expected: %s\n Actual: %s`, expectedCode, code)
 	}
 
 	if writeVar, ok := expr.(WriteVar); ok {
@@ -160,5 +155,4 @@ func TestParseWriteVar(t *testing.T) {
 	} else {
 		t.Errorf("The expression is not of type WriteVar!")
 	}
-
 }

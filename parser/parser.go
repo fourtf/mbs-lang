@@ -7,22 +7,22 @@ import (
 	"strings"
 )
 
-func ParseWriteVar(code []byte) ([]byte, Expr, error) {
+func ParseWriteVar(code string) (string, Expr, error) {
 	code, name, err := ParseName(code)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, err
 	}
 
-	equalsPos := strings.Index(string(code), "=")
-	semicolonPos := strings.Index(string(code), ";")
-	expressionString := strings.ReplaceAll(string(code[equalsPos+1:semicolonPos]), " ", "")
+	equalsPos := strings.Index(code, "=")
+	semicolonPos := strings.Index(code, ";")
+	expressionString := strings.ReplaceAll(code[equalsPos+1:semicolonPos], " ", "")
 	expr, err := ParseExpression(expressionString)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, err
 	}
 	code = code[semicolonPos+1:]
 
-	return code, WriteVar{Name: string(name), Expr: expr}, nil
+	return code, WriteVar{Name: name, Expr: expr}, nil
 }
 
 func ParseExpression(expression string) (Expr, error) {
@@ -119,15 +119,15 @@ func (m *ParseError) Error() string {
 // ParseName takes an input and returns one of:
 // - (the code without the name, the name, nil)
 // - (nil, nil, the error)
-func ParseName(code []byte) ([]byte, []byte, error) {
-	codeWithoutWhitespace := []byte(strings.ReplaceAll(string(code), " ", ""))
-	name := nameRegex.Find(codeWithoutWhitespace)
+func ParseName(code string) (string, string, error) {
+	codeWithoutWhitespace := strings.ReplaceAll(code, " ", "")
+	name := nameRegex.FindString(codeWithoutWhitespace)
 
-	if name != nil {
-		return codeWithoutWhitespace[len(name):], name, nil
+	if name == "" {
+		return "", "", &ParseError{Message: "Couldn't parse the name"}
 	}
 
-	return nil, nil, &ParseError{Message: "Couldn't parse the name"}
+	return codeWithoutWhitespace[len(name):], name, nil
 }
 
 func ParseCode(code string) (*Block, error) {
