@@ -12,84 +12,93 @@ func ParseWriteVar(code string) (string, Expr, error) {
 	if err != nil {
 		return "", nil, err
 	}
-
 	equalsPos := strings.Index(code, "=")
-	semicolonPos := strings.Index(code, ";")
-	expressionString := strings.ReplaceAll(code[equalsPos+1:semicolonPos], " ", "")
-	expr, err := ParseExpression(expressionString)
+	code, expr, err := ParseExpression(stripWhitespaceLeft(code[equalsPos+1:]))
 	if err != nil {
 		return "", nil, err
 	}
-	code = code[semicolonPos+1:]
 
 	return code, WriteVar{Name: name, Expr: expr}, nil
 }
 
-func ParseExpression(expression string) (Expr, error) {
-	if exp, err := ParseOperator(expression); err == nil {
-		return exp, nil
+func ParseExpression(code string) (string, Expr, error) {
+	if remainingCode, exp, err := ParseOperator(code); err == nil {
+		return remainingCode, exp, nil
 	}
-	if exp, err := ParseString(expression); err == nil {
-		return exp, nil
+	if remainingCode, exp, err := ParseExpressionWithoutOperator(code); err == nil {
+		return remainingCode, exp, nil
 	}
-	if exp, err := ParseBoolean(expression); err == nil {
-		return exp, nil
-	}
-	if exp, err := ParseInteger(expression); err == nil {
-		return exp, nil
-	}
-	if exp, err := ParseFloat(expression); err == nil {
-		return exp, nil
-	}
-	if exp, err := ParseFunction(expression); err == nil {
-		return exp, nil
-	}
-	return nil, &ParseError{Message: "Couldn't parse to any expression"}
+	return code, nil, &ParseError{Message: "Couldn't parse to any expression"}
 }
 
-func ParseString(expression string) (Expr, error) {
-	if strings.HasPrefix(expression, "\"") && strings.HasSuffix(expression, "\"") {
-		return String{Data: expression[1 : len(expression)-1]}, nil
+func ParseExpressionWithoutOperator(code string) (string, Expr, error) {
+	if remainingCode, exp, err := ParseString(code); err == nil {
+		return remainingCode, exp, nil
 	}
-	return nil, &ParseError{Message: "Couldn't parse the expression to a String"}
+	if remainingCode, exp, err := ParseBoolean(code); err == nil {
+		return remainingCode, exp, nil
+	}
+	if remainingCode, exp, err := ParseFloat(code); err == nil {
+		return remainingCode, exp, nil
+	}
+	if remainingCode, exp, err := ParseInteger(code); err == nil {
+		return remainingCode, exp, nil
+	}
+	if remainingCode, exp, err := ParseFunction(code); err == nil {
+		return remainingCode, exp, nil
+	}
+	return code, nil, &ParseError{Message: "Couldn't parse to any expression"}
 }
 
-func ParseBoolean(expression string) (Expr, error) {
-	if expression == "true" {
-		return Boolean{Data: true}, nil
-	} else if expression == "false" {
-		return Boolean{Data: false}, nil
+func ParseString(code string) (string, Expr, error) {
+	firstQuotes := strings.Index(code, "\"")
+	secondQuotes := strings.Index(code[firstQuotes+1:], "\"")
+	if firstQuotes != -1 && secondQuotes != -1 {
+		return code[secondQuotes+2:], String{Data: code[firstQuotes+1 : secondQuotes+1]}, nil
 	}
-	return nil, &ParseError{Message: "Couldn't parse the expression to a Boolean"}
+	return code, nil, &ParseError{Message: "Couldn't parse the expression to a String"}
 }
 
-func ParseInteger(expression string) (Expr, error) {
-	if integer, err := strconv.ParseInt(expression, 10, 64); err == nil {
-		return Integer{Data: integer}, nil
+func ParseBoolean(code string) (string, Expr, error) {
+	if strings.HasPrefix(code, "true") {
+		return code[4:], Boolean{Data: true}, nil
+	} else if strings.HasPrefix(code, "false") {
+		return code[5:], Boolean{Data: false}, nil
 	}
-	return nil, &ParseError{Message: "Couldn't parse the expression to an Integer"}
+	return code, nil, &ParseError{Message: "Couldn't parse the expression to a Boolean"}
 }
 
-func ParseFloat(expression string) (Expr, error) {
-	if float, err := strconv.ParseFloat(expression, 64); err == nil {
-		return Float{Data: float}, nil
+var (
+	intRegex = regexp.MustCompile(`^-?\d+`)
+)
+
+func ParseInteger(code string) (string, Expr, error) {
+	match := intRegex.FindString(code)
+	if integer, err := strconv.ParseInt(match, 10, 64); err == nil {
+		return code[len(match):], Integer{Data: integer}, nil
 	}
-	return nil, &ParseError{Message: "Couldn't parse the expression to a Float"}
+
+	return code, nil, &ParseError{Message: "Couldn't parse the expression to an Integer"}
 }
 
-func ParseFunction(expression string) (Expr, error) {
+var (
+	floatRegex = regexp.MustCompile(`^-?\d+\.\d+`)
+)
+
+func ParseFloat(code string) (string, Expr, error) {
+	match := floatRegex.FindString(code)
+	if float, err := strconv.ParseFloat(match, 64); err == nil {
+		return code[len(match):], Float{Data: float}, nil
+	}
+	return code, nil, &ParseError{Message: "Couldn't parse the expression to a Float"}
+}
+
+func ParseFunction(code string) (string, Expr, error) {
 	// name ( expr , expr , expr , expr )
 
 	// TODO
-	return nil, &ParseError{Message: "Couldn't parse the expression to a function"}
+	return code, nil, &ParseError{Message: "Couldn't parse the expression to a function"}
 }
-
-// ParseParentheses:  ( print ( "( )()()((" + "asd" ) )
-// ParseFunction:       print ( "( )()()((" + "asd" )
-// ParseParentheses:          ( "( )()()((" + "asd" )
-// ParseOperator:               "( )()+)((" + "asd"
-
-// ParseParentheses -> ParseFunction -> ParseString
 
 // ParseParentheses:  ( print ( "( )()()((" + "asd" ) )
 // ParseFunction:       print ( "( )()()((" + "asd" ) ) -> )
@@ -99,50 +108,54 @@ func ParseFunction(expression string) (Expr, error) {
 
 // ParseParentheses -> ParseFunction -> ParseString
 
-func ParseParentheses(expression string) (Expr, error) {
+func ParseParentheses(code string) (string, Expr, error) {
 	// (
-	expression = stripWhitespace(expression)
-	expression, ok := stripPrefix(expression[:0], "(")
+	code, ok := stripPrefix(stripWhitespaceLeft(code[:0]), "(")
 	if !ok {
-		return nil, NewParseErrorExpected("(")
+		return code, nil, NewParseErrorExpected("(")
 	}
 
 	// expr
-	expr, err := ParseExpression(expression)
+	code, expr, err := ParseExpression(code)
 	if err != nil {
-		return nil, err
+		return code, nil, err
 	}
 
 	// )
-	expression = stripWhitespace(expression)
-	expression, ok = stripPrefix(expression[:0], ")")
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code[:0], ")")
 	if !ok {
-		return nil, NewParseErrorExpected(")")
+		return code, nil, NewParseErrorExpected(")")
 	}
 
-	return expr, nil
+	return code, expr, nil
 }
 
 var (
 	operators = []string{"+", "-", "*", "/", ">", "<", "==", "!=", ">=", "<="}
 )
 
-func ParseOperator(expression string) (Expr, error) {
-	for _, operator := range operators {
-		pos := strings.Index(expression, operator)
-		if pos != -1 {
-			firstExp, err := ParseExpression(expression[:pos])
-			if err != nil {
-				return nil, &ParseError{Message: "Couldn't parse first expression!"}
-			}
-			secondExp, err := ParseExpression(expression[pos+1:])
-			if err != nil {
-				return nil, &ParseError{Message: "Couldn't parse second expression!"}
-			}
-			return Operator{Symbol: operator, FirstExp: firstExp, SecondExp: secondExp}, nil
+func ParseOperator(code string) (string, Expr, error) {
+	code, firstExp, err := ParseExpressionWithoutOperator(code)
+	if err != nil {
+		return code, nil, &ParseError{Message: "Couldn't parse first expression!"}
+	}
+	code = stripWhitespaceLeft(code)
+	operator := ""
+	for _, op := range operators {
+		if strings.HasPrefix(code, op) {
+			operator = op
+			break
 		}
 	}
-	return nil, &ParseError{Message: "Couldn't parse the expression to an Operator"}
+	if operator != "" {
+		code, secondExp, err := ParseExpressionWithoutOperator(stripWhitespaceLeft(code[1:]))
+		if err != nil {
+			return code, nil, &ParseError{Message: "Couldn't parse second expression!"}
+		}
+		return code, Operator{Symbol: operator, FirstExp: firstExp, SecondExp: secondExp}, nil
+	}
+	return code, nil, &ParseError{Message: "Couldn't parse the expression to an Operator"}
 }
 
 var (
@@ -167,7 +180,8 @@ var whitespaceRegex = regexp.MustCompile(`\s+`)
 // - (the code without the name, the name, nil)
 // - (nil, nil, the error)
 func ParseName(code string) (string, string, error) {
-	codeWithoutWhitespace := whitespaceRegex.ReplaceAllString(code, "")
+
+	codeWithoutWhitespace := stripWhitespaceLeft(code)
 	name := nameRegex.FindString(codeWithoutWhitespace)
 
 	if name == "" {
@@ -190,8 +204,8 @@ func ParseCode(code string) (*Block, error) {
 
 var stripWhitespaceRegex = regexp.MustCompile(`^\s+`)
 
-// stripWhitespace strips all whitespace on the left of the string and returns a string without it.
-func stripWhitespace(s string) string {
+// stripWhitespaceLeft strips all whitespace on the left of the string and returns a string without it.
+func stripWhitespaceLeft(s string) string {
 	loc := stripWhitespaceRegex.FindStringIndex(s)
 
 	if loc == nil {
