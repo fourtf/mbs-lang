@@ -136,10 +136,10 @@ func checkErrorAndCompareExpressions(t *testing.T, err error, expr Expr, expecte
 }
 func TestParseWriteVar(t *testing.T) {
 	expectedName := "a"
-	expectedCode := "b=456;"
+	expectedCode := "b=456;c=546;"
 	expectedExpr := Integer{Data: 123}
 
-	code, expr, err := ParseWriteVar(" a = 123; b = 456;")
+	code, expr, err := ParseWriteVar(" a = 123 ; b = 456  ;  \n\r c = 546;")
 
 	if code != expectedCode || expr == nil || err != nil {
 		t.Errorf(`got (Code: "%s", Expr: "%s", Err: %s) wanted ("%s", "%+v", nil)`, code, expr, err, expectedCode, expectedExpr)

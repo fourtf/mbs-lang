@@ -116,11 +116,13 @@ func (m *ParseError) Error() string {
 	return m.Message
 }
 
+var whitespaceRegex = regexp.MustCompile(`\s+`)
+
 // ParseName takes an input and returns one of:
 // - (the code without the name, the name, nil)
 // - (nil, nil, the error)
 func ParseName(code string) (string, string, error) {
-	codeWithoutWhitespace := strings.ReplaceAll(code, " ", "")
+	codeWithoutWhitespace := whitespaceRegex.ReplaceAllString(code, "")
 	name := nameRegex.FindString(codeWithoutWhitespace)
 
 	if name == "" {
