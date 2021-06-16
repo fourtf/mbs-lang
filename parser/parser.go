@@ -7,6 +7,15 @@ import (
 	"strings"
 )
 
+func ParseReadVar(code string) (string, Expr, error) {
+	code, name, err := ParseName(code)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return code, ReadVar{Name: name}, nil
+}
+
 func ParseWriteVar(code string) (string, Expr, error) {
 	code, name, err := ParseName(code)
 	if err != nil {
@@ -45,6 +54,9 @@ func ParseExpressionWithoutOperator(code string) (string, Expr, error) {
 		return remainingCode, exp, nil
 	}
 	if remainingCode, exp, err := ParseFunction(code); err == nil {
+		return remainingCode, exp, nil
+	}
+	if remainingCode, exp, err := ParseReadVar(code); err == nil {
 		return remainingCode, exp, nil
 	}
 	return code, nil, &ParseError{Message: "Couldn't parse to any expression"}
@@ -94,10 +106,36 @@ func ParseFloat(code string) (string, Expr, error) {
 }
 
 func ParseFunction(code string) (string, Expr, error) {
-	// name ( expr , expr , expr , expr )
+	// name
+	code = stripWhitespaceLeft(code)
+	code, name, err := ParseName(code)
+	if err != nil {
+		return "", nil, err
+	}
 
-	// TODO
-	return code, nil, &ParseError{Message: "Couldn't parse the expression to a function"}
+	// (
+	code = stripWhitespaceLeft(code)
+	code, ok := stripPrefix(code, "(")
+	if !ok {
+		return "", nil, NewParseErrorExpected("(")
+	}
+
+	// expr
+	// TODO: we only allow a single argument; not a list divided with ","
+	code = stripWhitespaceLeft(code)
+	code, expr, err := ParseExpression(code)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// )
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, ")")
+	if !ok {
+		return "", nil, NewParseErrorExpected(")")
+	}
+
+	return code, FunctionCall{Name: name, Argument: expr}, nil
 }
 
 // ParseParentheses:  ( print ( "( )()()((" + "asd" ) )

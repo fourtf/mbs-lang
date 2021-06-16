@@ -1,45 +1,42 @@
 package parser
 
 import (
+	"fmt"
 	. "mbs/common"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestParseName(t *testing.T) {
-	testParseName(t, "abc ", " ", "abc")
-	testParseName(t, "a123 ", " ", "a123")
-	testParseName(t, "a123{", "{", "a123")
-	testParseName(t, "a123=", "=", "a123")
-	testParseName(t, " abc = 123;", " = 123;", "abc")
-	testParseName(t, " abc = 123; b = 456;", " = 123; b = 456;", "abc")
-}
+func TestReadVar(t *testing.T) {
+	testCase := func(code, expectedCode, expectedName string) {
+		code, expr, err := ParseReadVar(code)
 
-func TestParseNameNegative(t *testing.T) {
-	testParseNameNegative(t, "123 ")
-	testParseNameNegative(t, "= ")
-	testParseNameNegative(t, "{ ")
-	testParseNameNegative(t, "äzcxv")
-	testParseNameNegative(t, "")
-}
-
-func testParseName(t *testing.T, code, resultCode, name string) {
-	xcode, xname, xerr := ParseName(code)
-
-	if xcode != resultCode || xname != name || xerr != nil {
-		t.Errorf(`got ("%s", "%s", %s) wanted ("%s", "%s", nil)`,
-			xcode, xname, xerr,
-			resultCode, name)
+		checkErrorAndCompareExpressionsAndCode(t, err, expr, ReadVar{Name: expectedName}, code, expectedCode)
 	}
+
+	testCase("abc ", " ", "abc")
+	testCase("a123 ", " ", "a123")
+	testCase("a123{", "{", "a123")
+	testCase("a123=", "=", "a123")
+	testCase(" abc = 123;", " = 123;", "abc")
+	testCase(" abc = 123; b = 456;", " = 123; b = 456;", "abc")
 }
 
-func testParseNameNegative(t *testing.T, code string) {
-	_, _, err := ParseName(code)
+func TestReadVar_negative(t *testing.T) {
+	testCase := func(t *testing.T, code string) {
+		_, _, err := ParseName(code)
 
-	if err == nil {
-		t.Errorf(`expected error when parsing "%s"`, code)
+		if err == nil {
+			t.Errorf(`expected error when parsing "%s"`, code)
+		}
 	}
+
+	testCase(t, "123 ")
+	testCase(t, "= ")
+	testCase(t, "{ ")
+	testCase(t, "äzcxv")
+	testCase(t, "")
 }
 
 func TestParseString(t *testing.T) {
@@ -83,7 +80,6 @@ func TestParseFloat(t *testing.T) {
 }
 
 func TestParseOperator(t *testing.T) {
-	// Doesn't work if ParseExpression doesn't work
 	code := "12+34; b:=123;"
 	firstExpr := Integer{Data: 12}
 	secondExpr := Integer{Data: 34}
@@ -96,7 +92,38 @@ func TestParseOperator(t *testing.T) {
 }
 
 func TestParseFunction(t *testing.T) {
-	// TODO
+	// TODO: switch order of arguments
+	testCase := func(code string, expectedExpr Expr, expectedCode string) {
+		code, expr, err := ParseFunction(code)
+
+		checkErrorAndCompareExpressionsAndCode(t, err, expr, expectedExpr, code, expectedCode)
+	}
+
+	testCase("asdf(123); b:=123;", FunctionCall{Name: "asdf", Argument: Integer{Data: 123}}, "; b:=123;")
+}
+
+func ExampleParseFunction_nested() {
+	code, expr, _ := ParseFunction(" a ( b ( c ( 123 ) ) ); x")
+	fmt.Println("code=" + code)
+	if expr != nil {
+		fmt.Println("expr=" + expr.Print())
+	}
+
+	// Output:
+	// code=; x
+	// expr=a(b(c(123)))
+}
+
+func ExampleParseFunction_complicated() {
+	code, expr, _ := ParseFunction(" a ( b + 123 ) )")
+	fmt.Println("code=" + code)
+	if expr != nil {
+		fmt.Println("expr=" + expr.Print())
+	}
+
+	// Output:
+	// code= )
+	// expr=a(b + 123)
 }
 
 func TestParseExpression(t *testing.T) {
@@ -108,14 +135,14 @@ func TestParseExpression(t *testing.T) {
 	testParseExpression(t, "-987; b:=123;", Integer{Data: -987}, "; b:=123;")
 	testParseExpression(t, "true; b:=123;", Boolean{Data: true}, "; b:=123;")
 	testParseExpression(t, "5*2; b:=123;", Operator{Symbol: "*", FirstExp: Integer{Data: 5}, SecondExp: Integer{Data: 2}}, "; b:=123;")
+	testParseExpression(t, "abc", ReadVar{Name: "abc"}, "")
+	testParseExpression(t, "abc\"", ReadVar{Name: "abc"}, `"`)
 	// TODO
 	// testParseExpression(t, "print("\""Hello"\""), ...)
 	testParseExpressionNegative(t, "*")
 	testParseExpressionNegative(t, "/1")
 	testParseExpressionNegative(t, "-.-.#+")
 	testParseExpressionNegative(t, "\"abc")
-	testParseExpressionNegative(t, "abc\"")
-	testParseExpressionNegative(t, "abc")
 }
 
 func testParseExpression(t *testing.T, expression string, expectedExpression Expr, expectedCode string) {

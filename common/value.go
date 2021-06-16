@@ -1,8 +1,6 @@
 package common
 
-type Value interface {
-	Print() string
-}
+import "strconv"
 
 type Boolean struct {
 	Data bool
@@ -22,19 +20,19 @@ type String struct {
 	Data string
 }
 
-func (str String) Print() string { return "" }
-func (str String) Eval()         {}
+func (s String) Print() string { return `"` + s.Data + `"` }
+func (s String) Eval()         {}
 
 type Integer struct {
 	Data int64
 }
 
-func (integer Integer) Print() string { return "" }
-func (integer Integer) Eval()         {}
+func (i Integer) Print() string { return strconv.FormatInt(i.Data, 10) }
+func (i Integer) Eval()         {}
 
 type Float struct {
 	Data float64
 }
 
-func (float Float) Print() string { return "" }
-func (float Float) Eval()         {}
+func (f Float) Print() string { return strconv.FormatFloat(f.Data, 'f', 5, 64) }
+func (f Float) Eval()         {}
