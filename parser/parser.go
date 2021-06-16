@@ -53,7 +53,7 @@ func ParseExpressionWithoutOperator(code string) (string, Expr, error) {
 	if remainingCode, exp, err := ParseInteger(code); err == nil {
 		return remainingCode, exp, nil
 	}
-	if remainingCode, exp, err := ParseFunction(code); err == nil {
+	if remainingCode, exp, err := ParseFunctionCall(code); err == nil {
 		return remainingCode, exp, nil
 	}
 	if remainingCode, exp, err := ParseReadVar(code); err == nil {
@@ -105,7 +105,7 @@ func ParseFloat(code string) (string, Expr, error) {
 	return code, nil, &ParseError{Message: "Couldn't parse the expression to a Float"}
 }
 
-func ParseFunction(code string) (string, Expr, error) {
+func ParseFunctionCall(code string) (string, Expr, error) {
 	// name
 	code = stripWhitespaceLeft(code)
 	code, name, err := ParseName(code)
@@ -212,8 +212,6 @@ func NewParseErrorExpected(expected string) *ParseError {
 	return &ParseError{Message: "Expected '" + expected + "'"}
 }
 
-var whitespaceRegex = regexp.MustCompile(`\s+`)
-
 // ParseName takes an input and returns one of:
 // - (the code without the name, the name, nil)
 // - (nil, nil, the error)
@@ -229,15 +227,49 @@ func ParseName(code string) (string, string, error) {
 	return codeWithoutWhitespace[len(name):], name, nil
 }
 
-func ParseCode(code string) (*Block, error) {
-	code = strings.ReplaceAll(code, " ", "") // to prevent filtering whitespace over and over again
+func ParseBlock(code string) (string, *Block, error) {
 	// Either:
 	// - WriteVar
-	// - Function
+	// - FunctionCall
 	// - If
 	// - For
 
-	return nil, nil
+	stmts := make([]Expr, 0)
+
+	for {
+		remainingCode, expr, err := ParseWriteVar(code)
+		if err == nil {
+			stmts = append(stmts, expr)
+			code = remainingCode
+			continue
+		}
+
+		remainingCode, expr, err = ParseFunctionCall(code)
+		if err == nil {
+			stmts = append(stmts, expr)
+			code = remainingCode
+			continue
+		}
+
+		break
+		// ...
+	}
+
+	return "", &Block{Statements: stmts}, nil
+}
+
+func ParseCode(code string) (*Block, error) {
+	code, blk, err := ParseBlock(code)
+	if err != nil {
+		return nil, err
+	}
+
+	code = stripWhitespaceLeft(code)
+	if code != "" {
+		return nil, &ParseError{Message: "Couldn't continue parsing after: `" + code + "`"}
+	}
+
+	return blk, nil
 }
 
 var stripWhitespaceRegex = regexp.MustCompile(`^\s+`)
@@ -256,8 +288,6 @@ func stripWhitespaceLeft(s string) string {
 // stripPrefix tries to remove a prefix from a string. Returns the stripped string and a bool indicating if it was
 // successful. Returns the original string if the prefix wasn't found.
 func stripPrefix(s, prefix string) (string, bool) {
-	// if strings.HasPrefix()
-
 	if strings.HasPrefix(s, prefix) {
 		return s[len(prefix):], true
 	}

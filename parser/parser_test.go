@@ -91,10 +91,10 @@ func TestParseOperator(t *testing.T) {
 	checkErrorAndCompareExpressionsAndCode(t, err, expr, expectedExpr, code, expectedCode)
 }
 
-func TestParseFunction(t *testing.T) {
+func TestParseFunctionCall(t *testing.T) {
 	// TODO: switch order of arguments
 	testCase := func(code string, expectedExpr Expr, expectedCode string) {
-		code, expr, err := ParseFunction(code)
+		code, expr, err := ParseFunctionCall(code)
 
 		checkErrorAndCompareExpressionsAndCode(t, err, expr, expectedExpr, code, expectedCode)
 	}
@@ -102,8 +102,8 @@ func TestParseFunction(t *testing.T) {
 	testCase("asdf(123); b:=123;", FunctionCall{Name: "asdf", Argument: Integer{Data: 123}}, "; b:=123;")
 }
 
-func ExampleParseFunction_nested() {
-	code, expr, _ := ParseFunction(" a ( b ( c ( 123 ) ) ); x")
+func ExampleParseFunctionCall_nested() {
+	code, expr, _ := ParseFunctionCall(" a ( b ( c ( 123 ) ) ); x")
 	fmt.Println("code=" + code)
 	if expr != nil {
 		fmt.Println("expr=" + expr.Print())
@@ -114,8 +114,8 @@ func ExampleParseFunction_nested() {
 	// expr=a(b(c(123)))
 }
 
-func ExampleParseFunction_complicated() {
-	code, expr, _ := ParseFunction(" a ( b + 123 ) )")
+func ExampleParseFunctionCall_complicated() {
+	code, expr, _ := ParseFunctionCall(" a ( b + 123 ) )")
 	fmt.Println("code=" + code)
 	if expr != nil {
 		fmt.Println("expr=" + expr.Print())
@@ -192,3 +192,40 @@ func TestParseWriteVar(t *testing.T) {
 		t.Errorf("The expression is not of type WriteVar!")
 	}
 }
+
+/*
+func Example() {
+	code := `a = 123;
+b = "abc";
+c = true;
+d = 4.2;
+
+if (c) {
+    print("c is true");
+}
+
+if (a == 123) {
+    print("a is 123");
+}
+
+if (c && true) {
+    print("c && true");
+}
+
+if (b == "abc") {
+    print("b is abc");
+}
+
+print(b + "123");
+
+for (;false;) {
+}
+
+for (e = 1; e < 4; e = e + 1) {
+    print("e");
+}
+
+input = readline();
+print(input);`
+}
+*/

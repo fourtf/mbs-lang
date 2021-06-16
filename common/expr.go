@@ -6,6 +6,7 @@ type Expr interface {
 }
 
 type Block struct {
+	Statements []Expr
 }
 
 type ReadVar struct {
