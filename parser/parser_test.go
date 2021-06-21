@@ -128,7 +128,8 @@ func ExampleParseFunctionCall_complicated() {
 
 func TestParseExpression(t *testing.T) {
 	testParseExpression(t, "\"Hi\"; b:=123;", String{Data: "Hi"}, "; b:=123;")
-	testParseExpression(t, "\"\"; b:=123;", String{Data: ""}, "; b:=123;")
+	testParseExpression(t, `""; b:=123;`, String{Data: ""}, "; b:=123;")
+	testParseExpression(t, `"\""; b:=123;`, String{Data: `"`}, "; b:=123;")
 	testParseExpression(t, "54.01; b:=123;", Float{Data: 54.01}, "; b:=123;")
 	testParseExpression(t, "-54.01; b:=123;", Float{Data: -54.01}, "; b:=123;")
 	testParseExpression(t, "987; b:=123;", Integer{Data: 987}, "; b:=123;")
@@ -146,15 +147,19 @@ func TestParseExpression(t *testing.T) {
 }
 
 func testParseExpression(t *testing.T, expression string, expectedExpression Expr, expectedCode string) {
-	code, expr, err := ParseExpression(expression)
-	checkErrorAndCompareExpressionsAndCode(t, err, expr, expectedExpression, code, expectedCode)
+	t.Run(expression, func(t *testing.T) {
+		code, expr, err := ParseExpression(expression)
+		checkErrorAndCompareExpressionsAndCode(t, err, expr, expectedExpression, code, expectedCode)
+	})
 }
 
 func testParseExpressionNegative(t *testing.T, expression string) {
-	_, expr, err := ParseExpression(expression)
-	if err == nil {
-		t.Errorf(`got (%+v) wanted nil `, expr)
-	}
+	t.Run(expression, func(t *testing.T) {
+		_, expr, err := ParseExpression(expression)
+		if err == nil {
+			t.Errorf(`got (%+v) wanted nil `, expr)
+		}
+	})
 }
 
 func checkErrorAndCompareExpressionsAndCode(t *testing.T, err error, expr Expr, expectedExpr Expr, code string, expectedCode string) {
@@ -163,7 +168,7 @@ func checkErrorAndCompareExpressionsAndCode(t *testing.T, err error, expr Expr, 
 	}
 
 	if !cmp.Equal(expr, expectedExpr) {
-		t.Errorf(`got (Expr: "%+v") wanted (Expr: "%+v")`, expr, expectedExpr)
+		t.Errorf(`got (Expr: "%#v") wanted (Expr: "%#v")`, expr, expectedExpr)
 	}
 
 	if code != expectedCode {
@@ -193,9 +198,75 @@ func TestParseWriteVar(t *testing.T) {
 	}
 }
 
-/*
-func Example() {
-	code := `a = 123;
+func TestParseParentheses(t *testing.T) {
+	testCase := func(code string, expectedExpr Expr, expectedCode string) {
+		code, expr, err := ParseParentheses(code)
+
+		checkErrorAndCompareExpressionsAndCode(t, err, expr, expectedExpr, code, expectedCode)
+	}
+
+	testCase("(123)", Integer{Data: 123}, "")
+	testCase("(123);123", Integer{Data: 123}, ";123")
+	testCase("(asdf(123));123", FunctionCall{Name: "asdf", Argument: Integer{Data: 123}}, ";123")
+}
+
+func TestParseFor(t *testing.T) {
+	testCase := func(code string, expectedExpr Expr, expectedCode string) {
+		t.Run(code, func(t *testing.T) {
+			code, expr, err := ParseFor(code)
+
+			checkErrorAndCompareExpressionsAndCode(t, err, expr, expectedExpr, code, expectedCode)
+		})
+	}
+
+	testCase("for (;false;) {}", &For{
+		Init:        &Nop{},
+		Condition:   Boolean{Data: false},
+		Advancement: &Nop{},
+		Body:        &Block{Statements: []Expr{}},
+	}, "")
+}
+
+func ExampleParseFor() {
+	_, expr, err := ParseFor(`for (e = 1; e < 4; e = e + 1) {
+		print("e");
+	}`)
+
+	if err != nil {
+		fmt.Println("ERROR", err)
+	} else {
+		fmt.Println(expr.Print())
+	}
+
+	// Output:
+	// for (e = 1; e < 4; e = e + 1) {
+	// print("e")
+	// }
+}
+
+func ExampleParseCode_simple() {
+	input := `a = 123;
+b = "abc";
+c = true;
+d = 4.2;`
+
+	block, err := ParseCode(input)
+
+	fmt.Println("error:", err != nil)
+	if block != nil {
+		fmt.Println(block.Print())
+	}
+
+	// Output:
+	// error: false
+	// a = 123
+	// b = "abc"
+	// c = true
+	// d = 4.20000
+}
+
+func ExampleParseCode_full() {
+	input := `a = 123;
 b = "abc";
 c = true;
 d = 4.2;
@@ -205,15 +276,15 @@ if (c) {
 }
 
 if (a == 123) {
-    print("a is 123");
+	print("a is 123");
 }
 
 if (c && true) {
-    print("c && true");
+	print("c && true");
 }
 
 if (b == "abc") {
-    print("b is abc");
+	print("b is abc");
 }
 
 print(b + "123");
@@ -222,10 +293,47 @@ for (;false;) {
 }
 
 for (e = 1; e < 4; e = e + 1) {
-    print("e");
+	print("e");
 }
 
 input = readline();
 print(input);`
+
+	block, err := ParseCode(input)
+
+	fmt.Println("error:", err != nil)
+	if block != nil {
+		fmt.Println(block.Print())
+	}
+
+	// Output:
+	// error: false
+	// a = 123
+	// b = "abc"
+	// c = true
+	// d = 4.20000
+	// if (c) {
+	// print("c is true")
+	// }
+	//
+	// if (a == 123) {
+	// print("a is 123")
+	// }
+	//
+	// if (c && true) {
+	// print("c && true")
+	// }
+	//
+	// if (b == "abc") {
+	// print("b is abc")
+	// }
+	//
+	// print(b + "123")
+	// for (nop; false; nop) {
+	// }
+	// for (e = 1; e < 4; e = e + 1) {
+	// print("e")
+	// }
+	// input = readline(nop)
+	// print(input)
 }
-*/

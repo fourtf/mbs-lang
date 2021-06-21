@@ -17,12 +17,20 @@ func ParseReadVar(code string) (string, Expr, error) {
 }
 
 func ParseWriteVar(code string) (string, Expr, error) {
+	code = stripWhitespaceLeft(code)
 	code, name, err := ParseName(code)
 	if err != nil {
 		return "", nil, err
 	}
-	equalsPos := strings.Index(code, "=")
-	code, expr, err := ParseExpression(stripWhitespaceLeft(code[equalsPos+1:]))
+
+	code = stripWhitespaceLeft(code)
+	code, ok := stripPrefix(code, "=")
+	if !ok {
+		return "", nil, NewParseErrorExpected("=")
+	}
+
+	code = stripWhitespaceLeft(code)
+	code, expr, err := ParseExpression(code)
 	if err != nil {
 		return "", nil, err
 	}
@@ -41,6 +49,9 @@ func ParseExpression(code string) (string, Expr, error) {
 }
 
 func ParseExpressionWithoutOperator(code string) (string, Expr, error) {
+	if remainingCode, exp, err := ParseParentheses(code); err == nil {
+		return remainingCode, exp, nil
+	}
 	if remainingCode, exp, err := ParseString(code); err == nil {
 		return remainingCode, exp, nil
 	}
@@ -62,13 +73,33 @@ func ParseExpressionWithoutOperator(code string) (string, Expr, error) {
 	return code, nil, &ParseError{Message: "Couldn't parse to any expression"}
 }
 
+var (
+	stringRegex       = regexp.MustCompile(`^"((\\"|[^"])*)"`)
+	stringEscapeRegex = regexp.MustCompile(`\\"`)
+)
+
 func ParseString(code string) (string, Expr, error) {
-	firstQuotes := strings.Index(code, "\"")
-	secondQuotes := strings.Index(code[firstQuotes+1:], "\"")
-	if firstQuotes != -1 && secondQuotes != -1 {
-		return code[secondQuotes+2:], String{Data: code[firstQuotes+1 : secondQuotes+1]}, nil
+	match := stringRegex.FindStringIndex(code)
+	if match == nil {
+		return code, nil, &ParseError{Message: "Couldn't parse a string"}
 	}
-	return code, nil, &ParseError{Message: "Couldn't parse the expression to a String"}
+
+	data := stringEscapeRegex.ReplaceAllStringFunc(code[match[0]+1:match[1]-1], escapeStringRepl)
+
+	return code[match[1]:], String{Data: data}, nil
+}
+
+func escapeStringRepl(match string) string {
+	switch match[1] {
+	case 'r':
+		return "\r"
+	case 'n':
+		return "\n"
+	case 't':
+		return "\t"
+	default:
+		return match[1:2]
+	}
 }
 
 func ParseBoolean(code string) (string, Expr, error) {
@@ -123,7 +154,7 @@ func ParseFunctionCall(code string) (string, Expr, error) {
 	// expr
 	// TODO: we only allow a single argument; not a list divided with ","
 	code = stripWhitespaceLeft(code)
-	code, expr, err := ParseExpression(code)
+	code, expr, err := parseOrNop(code, ParseExpression)
 	if err != nil {
 		return "", nil, err
 	}
@@ -148,7 +179,8 @@ func ParseFunctionCall(code string) (string, Expr, error) {
 
 func ParseParentheses(code string) (string, Expr, error) {
 	// (
-	code, ok := stripPrefix(stripWhitespaceLeft(code[:0]), "(")
+	code = stripWhitespaceLeft(code)
+	code, ok := stripPrefix(code, "(")
 	if !ok {
 		return code, nil, NewParseErrorExpected("(")
 	}
@@ -161,7 +193,7 @@ func ParseParentheses(code string) (string, Expr, error) {
 
 	// )
 	code = stripWhitespaceLeft(code)
-	code, ok = stripPrefix(code[:0], ")")
+	code, ok = stripPrefix(code, ")")
 	if !ok {
 		return code, nil, NewParseErrorExpected(")")
 	}
@@ -170,7 +202,7 @@ func ParseParentheses(code string) (string, Expr, error) {
 }
 
 var (
-	operators = []string{"+", "-", "*", "/", ">", "<", "==", "!=", ">=", "<="}
+	operators = []string{"+", "-", "*", "/", ">", "<", "==", "!=", ">=", "<=", "&&", "||"}
 )
 
 func ParseOperator(code string) (string, Expr, error) {
@@ -178,6 +210,7 @@ func ParseOperator(code string) (string, Expr, error) {
 	if err != nil {
 		return code, nil, &ParseError{Message: "Couldn't parse first expression!"}
 	}
+
 	code = stripWhitespaceLeft(code)
 	operator := ""
 	for _, op := range operators {
@@ -186,14 +219,16 @@ func ParseOperator(code string) (string, Expr, error) {
 			break
 		}
 	}
-	if operator != "" {
-		code, secondExp, err := ParseExpressionWithoutOperator(stripWhitespaceLeft(code[1:]))
-		if err != nil {
-			return code, nil, &ParseError{Message: "Couldn't parse second expression!"}
-		}
-		return code, Operator{Symbol: operator, FirstExp: firstExp, SecondExp: secondExp}, nil
+	if operator == "" {
+		return code, nil, &ParseError{Message: "Couldn't parse the expression to an Operator"}
 	}
-	return code, nil, &ParseError{Message: "Couldn't parse the expression to an Operator"}
+
+	code, secondExp, err := ParseExpressionWithoutOperator(stripWhitespaceLeft(code[len(operator):]))
+	if err != nil {
+		return code, nil, &ParseError{Message: "Couldn't parse second expression!"}
+	}
+
+	return code, Operator{Symbol: operator, FirstExp: firstExp, SecondExp: secondExp}, nil
 }
 
 var (
@@ -216,7 +251,6 @@ func NewParseErrorExpected(expected string) *ParseError {
 // - (the code without the name, the name, nil)
 // - (nil, nil, the error)
 func ParseName(code string) (string, string, error) {
-
 	codeWithoutWhitespace := stripWhitespaceLeft(code)
 	name := nameRegex.FindString(codeWithoutWhitespace)
 
@@ -225,6 +259,129 @@ func ParseName(code string) (string, string, error) {
 	}
 
 	return codeWithoutWhitespace[len(name):], name, nil
+}
+
+func ParseIf(code string) (string, Expr, error) {
+	// if
+	code = stripWhitespaceLeft(code)
+	code, ok := stripPrefix(code, "if")
+	if !ok {
+		return code, nil, NewParseErrorExpected("if")
+	}
+
+	// (
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, "(")
+	if !ok {
+		return code, nil, NewParseErrorExpected("(")
+	}
+
+	// expr
+	code, condition, err := ParseExpression(code)
+	if err != nil {
+		return code, nil, err
+	}
+
+	// )
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, ")")
+	if !ok {
+		return code, nil, NewParseErrorExpected(")")
+	}
+
+	// {
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, "{")
+	if !ok {
+		return code, nil, NewParseErrorExpected("{")
+	}
+
+	// expr
+	code, body, err := ParseBlock(code)
+	if err != nil {
+		return code, nil, err
+	}
+
+	// }
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, "}")
+	if !ok {
+		return code, nil, NewParseErrorExpected("}")
+	}
+
+	return code, &If{Condition: condition, Body: body}, nil
+}
+
+func ParseFor(code string) (string, Expr, error) {
+	// multi(
+	// 	stripPrefix("for"),
+	// 	parentheses("(", multi(opt(stmt), opt(expr), opt(stmt))), ")"),
+	// 	parentheses("{", block, "}"))
+
+	// for
+	code = stripWhitespaceLeft(code)
+	code, ok := stripPrefix(code, "for")
+	if !ok {
+		return code, nil, NewParseErrorExpected("for")
+	}
+
+	// (
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, "(")
+	if !ok {
+		return code, nil, NewParseErrorExpected("(")
+	}
+
+	// a = 123 or Nop
+	code, initExpr, _ := parseOrNop(code, ParseWriteVar)
+
+	// ;
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, ";")
+	if !ok {
+		return "", nil, NewParseErrorExpected(";")
+	}
+
+	// expr
+	code, conditionExpr, _ := parseOrNop(code, ParseExpression)
+
+	// ;
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, ";")
+	if !ok {
+		return "", nil, NewParseErrorExpected(";")
+	}
+
+	// a = a + 1 or Nop
+	code, advancementExpr, _ := parseOrNop(code, ParseWriteVar)
+
+	// )
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, ")")
+	if !ok {
+		return code, nil, NewParseErrorExpected(")")
+	}
+
+	// {
+	code, ok = stripPrefix(stripWhitespaceLeft(code), "{")
+	if !ok {
+		return code, nil, NewParseErrorExpected("{")
+	}
+
+	// block
+	code, bodyExpr, err := ParseBlock(code)
+	if err != nil {
+		return code, nil, err
+	}
+
+	// }
+	code = stripWhitespaceLeft(code)
+	code, ok = stripPrefix(code, "}")
+	if !ok {
+		return code, nil, NewParseErrorExpected("}")
+	}
+
+	return code, &For{Init: initExpr, Condition: conditionExpr, Advancement: advancementExpr, Body: bodyExpr}, nil
 }
 
 func ParseBlock(code string) (string, *Block, error) {
@@ -236,26 +393,35 @@ func ParseBlock(code string) (string, *Block, error) {
 
 	stmts := make([]Expr, 0)
 
-	for {
-		remainingCode, expr, err := ParseWriteVar(code)
-		if err == nil {
-			stmts = append(stmts, expr)
-			code = remainingCode
-			continue
-		}
+	// update if below if you update this!
+	opts := [](func(code string) (string, Expr, error)){ParseWriteVar, ParseFunctionCall, ParseIf, ParseFor}
 
-		remainingCode, expr, err = ParseFunctionCall(code)
-		if err == nil {
+outer:
+	for {
+		for i, opt := range opts {
+			remainingCode, expr, err := opt(code)
+			if err != nil {
+				continue
+			}
+
+			// ParseIf or ParseFor don't have a ;
+			if i < 2 {
+				var ok bool
+				remainingCode, ok = stripPrefix(remainingCode, ";")
+				if !ok {
+					continue
+				}
+			}
+
 			stmts = append(stmts, expr)
 			code = remainingCode
-			continue
+			continue outer
 		}
 
 		break
-		// ...
 	}
 
-	return "", &Block{Statements: stmts}, nil
+	return code, &Block{Statements: stmts}, nil
 }
 
 func ParseCode(code string) (*Block, error) {
@@ -270,6 +436,17 @@ func ParseCode(code string) (*Block, error) {
 	}
 
 	return blk, nil
+}
+
+// parseOrNop returns a "Nop" if the function fails to parse the code.
+func parseOrNop(code string, fn func(code string) (string, Expr, error)) (string, Expr, error) {
+	remainingCode, expr, err := fn(code)
+
+	if err != nil {
+		return code, &Nop{}, nil
+	}
+
+	return remainingCode, expr, nil
 }
 
 var stripWhitespaceRegex = regexp.MustCompile(`^\s+`)
