@@ -190,7 +190,7 @@ func ParseName(code string) (string, string, error) {
 
 func ParseIf(code string) (string, Expr, error) {
 	if_ := If{}
-	code, err := sequence(token("if"), token("("), expr(&if_.Condition), token(")"), token("{"), block(&if_.Body), token("}"))(code)
+	code, err := sequence(token("if"), token("("), expr(&if_.Condition), token(")"), token("{"), block(if_.Body), token("}"))(code)
 
 	if err != nil {
 		return code, nil, err
@@ -212,7 +212,7 @@ func ParseFor(code string) (string, Expr, error) {
 		opt(pfunc(&for_.Advancement, ParseWriteVar)),
 		token(")"),
 		token("{"),
-		block(&for_.Body),
+		block(for_.Body),
 		token("}"))(code)
 
 	if err != nil {
