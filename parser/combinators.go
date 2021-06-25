@@ -41,7 +41,7 @@ func block(out *Block) Parser {
 	return func(code string) (string, error) {
 		code, expr, err := ParseBlock(code)
 		if err == nil {
-			out = expr
+			*out = expr
 		}
 		return code, err
 	}

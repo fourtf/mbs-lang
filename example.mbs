@@ -4,29 +4,29 @@ c = true;
 d = 4.2;
 
 if (c) {
-    print("c is true");
+    println("c is true");
 }
 
 if (a == 123) {
-    print("a is 123");
+    println("a is 123");
 }
 
 if (c && true) {
-    print("c && true");
+    println("c && true");
 }
 
 if (b == "abc") {
-    print("b is abc");
+    println("b is abc");
 }
 
-print(b + "123");
+println(b + "123");
 
 for (;false;) {
 }
 
 for (e = 1; e < 4; e = e + 1) {
-    print("e");
+    println("e");
 }
 
-input = readline();
-print(input);
+input = readln();
+println(input);

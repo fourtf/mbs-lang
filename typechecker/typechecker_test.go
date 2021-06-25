@@ -9,14 +9,14 @@ func TestTypeCheckExpr(t *testing.T) {
 	testTypeCheckExpr(t, WriteVar{Name: "abc", Expr: FunctionCall{Name: "readln", Argument: Nop{}}})
 	testTypeCheckExpr(t, If{
 		Condition: Operator{Symbol: "==", FirstExp: ReadVar{Name: "abc"}, SecondExp: String{Data: "abc"}},
-		Body: &Block{Statements: []Expr{
+		Body: Block{Statements: []Expr{
 			FunctionCall{Name: "println", Argument: String{Data: "Equal!"}},
 			WriteVar{Name: "def", Expr: Integer{Data: 5}},
 			For{
 				Init:        WriteVar{Name: "i", Expr: Integer{Data: 0}},
 				Condition:   Operator{Symbol: "<", FirstExp: ReadVar{Name: "i"}, SecondExp: ReadVar{Name: "def"}},
 				Advancement: WriteVar{Name: "i", Expr: Operator{Symbol: "+", FirstExp: ReadVar{Name: "i"}, SecondExp: Integer{Data: 1}}},
-				Body: &Block{Statements: []Expr{
+				Body: Block{Statements: []Expr{
 					FunctionCall{Name: "println", Argument: String{Data: "iterating"}},
 				}},
 			}}},

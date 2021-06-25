@@ -223,7 +223,7 @@ func TestParseFor(t *testing.T) {
 		Init:        &Nop{},
 		Condition:   Boolean{Data: false},
 		Advancement: &Nop{},
-		Body:        &Block{Statements: []Expr{}},
+		Body:        Block{Statements: []Expr{}},
 	}, "")
 }
 

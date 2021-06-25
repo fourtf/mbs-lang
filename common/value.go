@@ -14,7 +14,9 @@ func (b Boolean) Print() string {
 	}
 }
 
-func (boolean Boolean) Eval() {}
+func (b Boolean) Eval() interface{} {
+	return b.Data
+}
 
 func (b Boolean) Type() Type {
 	return BooleanType
@@ -25,7 +27,9 @@ type String struct {
 }
 
 func (s String) Print() string { return `"` + s.Data + `"` }
-func (s String) Eval()         {}
+func (s String) Eval() interface{} {
+	return s.Data
+}
 
 func (s String) Type() Type {
 	return StringType
@@ -36,7 +40,9 @@ type Integer struct {
 }
 
 func (i Integer) Print() string { return strconv.FormatInt(i.Data, 10) }
-func (i Integer) Eval()         {}
+func (i Integer) Eval() interface{} {
+	return i.Data
+}
 func (i Integer) Type() Type {
 	return IntegerType
 }
@@ -46,7 +52,9 @@ type Float struct {
 }
 
 func (f Float) Print() string { return strconv.FormatFloat(f.Data, 'f', 5, 64) }
-func (f Float) Eval()         {}
+func (f Float) Eval() interface{} {
+	return f.Data
+}
 func (f Float) Type() Type {
 	return FloatType
 }

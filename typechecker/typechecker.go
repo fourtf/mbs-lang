@@ -7,7 +7,7 @@ import (
 var variables map[string]Type = make(map[string]Type)
 
 func TypeCheckBlock(block *Block) bool {
-	outerScopeVars := map[string]Type{} // holds the variables declared outside of the current block
+	outerScopeVars := make(map[string]Type) // holds the variables declared outside of the current block
 	for k, v := range variables {
 		outerScopeVars[k] = v
 	}
@@ -103,7 +103,7 @@ func TypeCheckOperator(operator Operator) Type {
 }
 
 func TypeCheckFunctionCall(function FunctionCall) (bool, Type) {
-	if function.Name == "println" && function.Argument.Type() == StringType {
+	if function.Name == "println" && TypeCheckRightExpr(function.Argument) == StringType {
 		return true, NopType
 	} else if function.Name == "readln" && function.Argument.Type() == NopType {
 		return true, StringType
@@ -125,7 +125,7 @@ func TypeCheckIf(ifExpr If) bool {
 		return false
 	}
 
-	return TypeCheckBlock(ifExpr.Body)
+	return TypeCheckBlock(&ifExpr.Body)
 }
 
 func TypeCheckFor(forExpr For) bool {
@@ -153,7 +153,7 @@ func TypeCheckFor(forExpr For) bool {
 		return false
 	}
 
-	return TypeCheckBlock(forExpr.Body)
+	return TypeCheckBlock(&forExpr.Body)
 }
 
 func TypeCheckCondition(expr Expr) bool {

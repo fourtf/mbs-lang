@@ -190,7 +190,7 @@ func ParseName(code string) (string, string, error) {
 
 func ParseIf(code string) (string, Expr, error) {
 	if_ := If{}
-	code, err := sequence(token("if"), token("("), expr(&if_.Condition), token(")"), token("{"), block(if_.Body), token("}"))(code)
+	code, err := sequence(token("if"), token("("), expr(&if_.Condition), token(")"), token("{"), block(&if_.Body), token("}"))(code)
 
 	if err != nil {
 		return code, nil, err
@@ -212,17 +212,17 @@ func ParseFor(code string) (string, Expr, error) {
 		opt(pfunc(&for_.Advancement, ParseWriteVar)),
 		token(")"),
 		token("{"),
-		block(for_.Body),
+		block(&for_.Body),
 		token("}"))(code)
 
 	if err != nil {
 		return code, nil, err
 	}
 
-	return code, &for_, nil
+	return code, for_, nil
 }
 
-func ParseBlock(code string) (string, *Block, error) {
+func ParseBlock(code string) (string, Block, error) {
 	// Either:
 	// - WriteVar
 	// - FunctionCall
@@ -242,7 +242,7 @@ func ParseBlock(code string) (string, *Block, error) {
 		)(code)
 
 		if err != nil {
-			return code, &Block{Statements: stmts}, nil
+			return code, Block{Statements: stmts}, nil
 		}
 
 		code = tmp
@@ -261,7 +261,7 @@ func ParseCode(code string) (*Block, error) {
 		return nil, &ParseError{Message: "Couldn't continue parsing after: `" + code + "`"}
 	}
 
-	return blk, nil
+	return &blk, nil
 }
 
 var stripWhitespaceRegex = regexp.MustCompile(`^\s+`)

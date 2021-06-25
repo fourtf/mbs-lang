@@ -22,9 +22,11 @@ const (
 	StringType       Type = "String"
 )
 
+var variables map[string]interface{} = make(map[string]interface{})
+
 type Expr interface {
 	Print() string
-	Eval()
+	Eval() interface{}
 	Type() Type
 }
 
@@ -44,7 +46,17 @@ func (b Block) Print() string {
 	return bld.String()
 }
 
-func (b Block) Eval() {}
+func (b Block) Eval() interface{} {
+	outerscopeVars := map[string]interface{}{}
+	for k, v := range variables {
+		outerscopeVars[k] = v
+	}
+	for _, expr := range b.Statements {
+		expr.Eval()
+	}
+	variables = outerscopeVars
+	return nil
+}
 
 func (b Block) Type() Type {
 	return BlockType
@@ -57,7 +69,10 @@ type ReadVar struct {
 func (v ReadVar) Print() string {
 	return v.Name
 }
-func (v ReadVar) Eval() {}
+
+func (v ReadVar) Eval() interface{} {
+	return variables[v.Name]
+}
 
 func (v ReadVar) Type() Type {
 	return ReadVarType
@@ -71,7 +86,11 @@ type WriteVar struct {
 func (v WriteVar) Print() string {
 	return v.Name + " = " + v.Expr.Print()
 }
-func (v WriteVar) Eval() {}
+
+func (v WriteVar) Eval() interface{} {
+	variables[v.Name] = v.Expr.Eval()
+	return nil
+}
 
 func (v WriteVar) Type() Type {
 	return WriteVarType
@@ -86,7 +105,121 @@ type Operator struct {
 func (op Operator) Print() string {
 	return op.FirstExp.Print() + " " + op.Symbol + " " + op.SecondExp.Print()
 }
-func (op Operator) Eval() {}
+func (op Operator) Eval() interface{} { //idk how to cast these correctly
+	firstExp := op.FirstExp.Eval()
+	secondExp := op.SecondExp.Eval()
+
+	switch operator := op.Symbol; operator {
+	case "+":
+		switch firstExp.(type) {
+		case int64:
+			switch secondExp.(type) {
+			case int64:
+				return firstExp.(int64) + secondExp.(int64)
+			case float64:
+				return firstExp.(float64) + secondExp.(float64)
+			}
+		case float64:
+			return firstExp.(float64) + secondExp.(float64)
+		case string:
+			return firstExp.(string) + secondExp.(string)
+		}
+	case "-":
+		switch firstExp.(type) {
+		case int64:
+			switch secondExp.(type) {
+			case int64:
+				return firstExp.(int64) - secondExp.(int64)
+			case float64:
+				return firstExp.(float64) - secondExp.(float64)
+			}
+		case float64:
+			return firstExp.(float64) - secondExp.(float64)
+		}
+	case "*":
+		switch firstExp.(type) {
+		case int64:
+			switch secondExp.(type) {
+			case int64:
+				return firstExp.(int64) * secondExp.(int64)
+			case float64:
+				return firstExp.(float64) * secondExp.(float64)
+			}
+		case float64:
+			return firstExp.(float64) * secondExp.(float64)
+		}
+
+	case "/":
+		switch firstExp.(type) {
+		case int64:
+			switch secondExp.(type) {
+			case int64:
+				return firstExp.(int64) / secondExp.(int64)
+			case float64:
+				return firstExp.(float64) / secondExp.(float64)
+			}
+		case float64:
+			return firstExp.(float64) / secondExp.(float64)
+		}
+	case "==":
+		return firstExp == secondExp
+	case "!=":
+		return firstExp != secondExp
+	case ">":
+		switch firstExp.(type) {
+		case int64:
+			switch secondExp.(type) {
+			case int64:
+				return firstExp.(int64) > secondExp.(int64)
+			case float64:
+				return firstExp.(float64) > secondExp.(float64)
+			}
+		case float64:
+			return firstExp.(float64) > secondExp.(float64)
+		}
+	case "<":
+		switch firstExp.(type) {
+		case int64:
+			switch secondExp.(type) {
+			case int64:
+				return firstExp.(int64) < secondExp.(int64)
+			case float64:
+				return firstExp.(float64) < secondExp.(float64)
+			}
+		case float64:
+			return firstExp.(float64) < secondExp.(float64)
+		}
+	case ">=":
+		switch firstExp.(type) {
+		case int64:
+			switch secondExp.(type) {
+			case int64:
+				return firstExp.(int64) >= secondExp.(int64)
+			case float64:
+				return firstExp.(float64) >= secondExp.(float64)
+			}
+		case float64:
+			return firstExp.(float64) >= secondExp.(float64)
+		}
+	case "<=":
+		switch firstExp.(type) {
+		case int64:
+			switch secondExp.(type) {
+			case int64:
+				return firstExp.(int64) <= secondExp.(int64)
+			case float64:
+				return firstExp.(float64) <= secondExp.(float64)
+			}
+		case float64:
+			return firstExp.(float64) <= secondExp.(float64)
+		}
+	case "&&":
+		return firstExp.(bool) && secondExp.(bool)
+	case "||":
+		return firstExp.(bool) && secondExp.(bool)
+	}
+	return nil
+}
 
 func (op Operator) Type() Type {
 	return OperatorType
@@ -100,7 +233,17 @@ type FunctionCall struct {
 func (f FunctionCall) Print() string {
 	return f.Name + "(" + f.Argument.Print() + ")"
 }
-func (f FunctionCall) Eval() {}
+
+func (f FunctionCall) Eval() interface{} {
+	if f.Name == "println" {
+		println(f.Argument.Eval().(string))
+	} else if f.Name == "readln" {
+		var input string
+		fmt.Scanf("%s", &input)
+		return input
+	}
+	return nil
+}
 
 func (f FunctionCall) Type() Type {
 	return FunctionCallType
@@ -108,14 +251,19 @@ func (f FunctionCall) Type() Type {
 
 type If struct {
 	Condition Expr
-	Body      *Block
+	Body      Block
 }
 
 func (i If) Print() string {
 	return "if (" + i.Condition.Print() + ") {\n" + i.Body.Print() + "}\n"
 }
 
-func (i If) Eval() {}
+func (i If) Eval() interface{} {
+	if i.Condition.Eval().(bool) {
+		i.Body.Eval()
+	}
+	return nil
+}
 
 func (i If) Type() Type {
 	return IfType
@@ -125,16 +273,21 @@ type For struct {
 	Init        Expr
 	Condition   Expr
 	Advancement Expr
-	Body        *Block
+	Body        Block
 }
 
-func (i For) Print() string {
-	return fmt.Sprintf("for (%s; %s; %s) {\n%s}", i.Init.Print(), i.Condition.Print(), i.Advancement.Print(), i.Body.Print())
+func (f For) Print() string {
+	return fmt.Sprintf("for (%s; %s; %s) {\n%s}", f.Init.Print(), f.Condition.Print(), f.Advancement.Print(), f.Body.Print())
 }
 
-func (i For) Eval() {}
+func (f For) Eval() interface{} {
+	for f.Init.Eval(); f.Condition.Eval().(bool); f.Advancement.Eval() {
+		f.Body.Eval()
+	}
+	return nil
+}
 
-func (i For) Type() Type {
+func (f For) Type() Type {
 	return ForType
 }
 
@@ -145,7 +298,9 @@ func (i Nop) Print() string {
 	return "nop"
 }
 
-func (i Nop) Eval() {}
+func (i Nop) Eval() interface{} {
+	return nil
+}
 
 func (i Nop) Type() Type {
 	return NopType
