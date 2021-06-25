@@ -219,7 +219,7 @@ func TestParseFor(t *testing.T) {
 		})
 	}
 
-	testCase("for (;false;) {}", &For{
+	testCase("for (;false;) {}", For{
 		Init:        &Nop{},
 		Condition:   Boolean{Data: false},
 		Advancement: &Nop{},
