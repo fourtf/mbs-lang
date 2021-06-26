@@ -7,7 +7,8 @@ import (
 )
 
 func main() {
-	code := `a = 123;
+	code := `
+	a = 123;
 	b = "abc";
 	c = true;
 	d = 4.2;
@@ -34,19 +35,28 @@ func main() {
 		println("e");
 	}
 	input = readln();
-	println(input);`
+	println(input);
+	for (e = 0; e < 10; e = e + 2) {
+		println("*");
+	}
+	for (i = 0; i < 10; i = i+1) {
+		a = a+++++++1;
+	}
+	println(input);
+	`
 
 	block, err := ParseCode(code)
 
 	if err != nil {
 		fmt.Println("ERROR parsing the code!")
+	} else {
+
+		valid := TypeCheckBlock(block)
+
+		if !valid {
+			fmt.Println("ERROR typechecking the code")
+		} else {
+			block.Eval() //Code generation/execution
+		}
 	}
-
-	valid := TypeCheckBlock(block)
-
-	if !valid {
-		fmt.Println("ERROR typechecking the code")
-	}
-
-	block.Eval() //Code generation/execution
 }
