@@ -6,7 +6,8 @@ import (
 )
 
 /*In here all the non primitive types that our AST can contain are stored.
-These types are also defining the code execution by implementing the "Expr"-Interface*/
+These types are also defining the code execution by implementing the "Expr"-Interface.
+The types of primitive values (string, int, ...) are found in the file "value.go".*/
 
 type Type string
 

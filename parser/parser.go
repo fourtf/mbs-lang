@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// ParseReadVar reads a single name which represents reading a variable.
+// Example: a
 func ParseReadVar(code string) (string, Expr, error) {
 	code, name, err := ParseName(code)
 	if err != nil {
@@ -16,6 +18,8 @@ func ParseReadVar(code string) (string, Expr, error) {
 	return code, ReadVar{Name: name}, nil
 }
 
+// ParseWriteVar the name of a variable and then the expression which should be written to it on execution.
+// Example: a = 123 + 456
 func ParseWriteVar(code string) (string, Expr, error) {
 	wv := WriteVar{}
 	code, err := sequence(name(&wv.Name), token("="), expr(&wv.Expr))(code)
@@ -27,6 +31,8 @@ func ParseWriteVar(code string) (string, Expr, error) {
 	return code, wv, err
 }
 
+// ParseExpression tries every possible option that a parser can be. This includes syntax such as literals, function
+// calls or parenthesis around another expresison.
 func ParseExpression(code string) (string, Expr, error) {
 	if remainingCode, exp, err := ParseOperator(code); err == nil {
 		return remainingCode, exp, nil
@@ -62,6 +68,7 @@ var (
 	stringEscapeRegex = regexp.MustCompile(`\\"`)
 )
 
+// ParseString parses a string literal surrounded by quotation marks.
 func ParseString(code string) (string, Expr, error) {
 	code = stripWhitespaceLeft(code)
 	match := stringRegex.FindStringIndex(code)
@@ -87,6 +94,7 @@ func escapeStringRepl(match string) string {
 	}
 }
 
+// ParseBoolean parses a boolean literal. It can be either "true" or "false".
 func ParseBoolean(code string) (string, Expr, error) {
 	code = stripWhitespaceLeft(code)
 	if strings.HasPrefix(code, "true") {
@@ -101,6 +109,7 @@ var (
 	intRegex = regexp.MustCompile(`^-?\d+`)
 )
 
+// ParseInteger parses an integer of type "int". Can be negative.
 func ParseInteger(code string) (string, Expr, error) {
 	code = stripWhitespaceLeft(code)
 	match := intRegex.FindString(code)
@@ -115,6 +124,7 @@ var (
 	floatRegex = regexp.MustCompile(`^-?\d+\.\d+`)
 )
 
+// ParseFloat parses a floating point number of type "double" of the format "x.y" or "-x.y".
 func ParseFloat(code string) (string, Expr, error) {
 	code = stripWhitespaceLeft(code)
 	match := floatRegex.FindString(code)
@@ -125,6 +135,7 @@ func ParseFloat(code string) (string, Expr, error) {
 	return code, nil, &ParseError{Message: "Couldn't parse the expression to a Float"}
 }
 
+// ParseFunctionCall parses a function call in the form of `name(expr)` or `name()`.
 func ParseFunctionCall(code string) (string, Expr, error) {
 	fn := FunctionCall{Argument: Nop{}}
 	code, err := sequence(name(&fn.Name), token("("), opt(expr(&fn.Argument)), token(")"))(code)
@@ -132,6 +143,7 @@ func ParseFunctionCall(code string) (string, Expr, error) {
 	return code, fn, err
 }
 
+// ParseParentheses parses an expression surrounded by parentheses.
 func ParseParentheses(code string) (string, Expr, error) {
 	var res Expr = nil
 	code, err := sequence(token("("), expr(&res), token(")"))(code)
@@ -143,6 +155,7 @@ var (
 	operators = []string{"+", "-", "*", "/", ">", "<", "==", "!=", ">=", "<=", "&&", "||"}
 )
 
+// ParseOpterator parses two expressions with an operator inbetween them.
 func ParseOperator(code string) (string, Expr, error) {
 	code = stripWhitespaceLeft(code)
 	code, firstExp, err := ParseExpressionWithoutOperator(code)
@@ -188,6 +201,7 @@ func ParseName(code string) (string, string, error) {
 	return codeWithoutWhitespace[len(name):], name, nil
 }
 
+// ParseIf parses an if condition like "if (expr) { statement;... }"
 func ParseIf(code string) (string, Expr, error) {
 	if_ := If{}
 	code, err := sequence(token("if"), token("("), expr(&if_.Condition), token(")"), token("{"), block(&if_.Body), token("}"))(code)
@@ -199,6 +213,7 @@ func ParseIf(code string) (string, Expr, error) {
 	return code, if_, nil
 }
 
+// ParseIf parses a for loop like "for (a = expr; condition; b = expr) { statement;... }"
 func ParseFor(code string) (string, Expr, error) {
 	for_ := For{Init: &Nop{}, Condition: &Nop{}, Advancement: &Nop{}}
 
@@ -222,6 +237,7 @@ func ParseFor(code string) (string, Expr, error) {
 	return code, for_, nil
 }
 
+// ParseBlock parses a list of statement. It's used in the ParseIf and ParseFor functions.
 func ParseBlock(code string) (string, Block, error) {
 	// Either:
 	// - WriteVar
@@ -250,6 +266,7 @@ func ParseBlock(code string) (string, Block, error) {
 	}
 }
 
+// ParseCode parses an entire script. Fails if there is code leftover after parsing.
 func ParseCode(code string) (*Block, error) {
 	code, blk, err := ParseBlock(code)
 	if err != nil {

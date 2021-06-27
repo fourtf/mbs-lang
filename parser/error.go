@@ -1,5 +1,6 @@
 package parser
 
+// ParseError is the error type used in parsing functions.
 type ParseError struct {
 	Message string
 }
