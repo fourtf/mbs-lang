@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+	// Enter your program code:
 	code := `
 	a = 123;
 	b = "abc";
@@ -40,7 +41,7 @@ func main() {
 		println("*");
 	}
 	for (i = 0; i < 10; i = i+1) {
-		a = a+++++++1;
+		a = a+1;
 	}
 	println(input);
 	`
@@ -50,7 +51,6 @@ func main() {
 	if err != nil {
 		fmt.Println("ERROR parsing the code!")
 	} else {
-
 		valid := TypeCheckBlock(block)
 
 		if !valid {

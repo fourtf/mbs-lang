@@ -2,6 +2,8 @@ package common
 
 import "strconv"
 
+/*In here are all the primitive data types that our language supports*/
+
 type Boolean struct {
 	Data bool
 }

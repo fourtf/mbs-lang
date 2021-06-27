@@ -4,6 +4,9 @@ import (
 	. "mbs/common"
 )
 
+/*This typechecker validates the type-safety of every expression in our AST*/
+
+// stores all the declared variables and their type to look up their type when they are used later on in the code
 var variables map[string]Type = make(map[string]Type)
 
 func TypeCheckBlock(block *Block) bool {
@@ -11,6 +14,7 @@ func TypeCheckBlock(block *Block) bool {
 	for k, v := range variables {
 		outerScopeVars[k] = v
 	}
+	// type-checking every expression inside of the current block
 	for _, expr := range block.Statements {
 		typesValid := TypeCheckExpr(expr)
 		if !typesValid {
@@ -21,6 +25,7 @@ func TypeCheckBlock(block *Block) bool {
 	return true
 }
 
+// type-checking of expressions that can occur outside of another expression
 func TypeCheckExpr(expr Expr) bool {
 	switch exprType := expr.Type(); exprType {
 	case WriteVarType:
@@ -36,6 +41,7 @@ func TypeCheckExpr(expr Expr) bool {
 	return false
 }
 
+// type-checking of expressions that can occur inside of another expression
 func TypeCheckRightExpr(expr Expr) Type {
 	switch exprType := expr.Type(); exprType {
 	case OperatorType:
@@ -62,8 +68,11 @@ var (
 )
 
 func TypeCheckOperator(operator Operator) Type {
+	// checking the type of the expressions left and right of our operator
 	firstExpType := TypeCheckRightExpr(operator.FirstExp)
 	secondExpType := TypeCheckRightExpr(operator.SecondExp)
+
+	// checking if the types can be used with the given operator
 	for _, symbol := range typeEqualCompOps {
 		if symbol == operator.Symbol && firstExpType == secondExpType {
 			return BooleanType
@@ -102,6 +111,7 @@ func TypeCheckOperator(operator Operator) Type {
 	return NopType
 }
 
+// returns if the types in this function call are valid and what type is returned by the function
 func TypeCheckFunctionCall(function FunctionCall) (bool, Type) {
 	if function.Name == "println" && TypeCheckRightExpr(function.Argument) == StringType {
 		return true, NopType

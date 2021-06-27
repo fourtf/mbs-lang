@@ -5,8 +5,12 @@ import (
 	"strings"
 )
 
+/*In here all the non primitive types that our AST can contain are stored.
+These types are also defining the code execution by implementing the "Expr"-Interface*/
+
 type Type string
 
+// all of the expressions that can occur in our AST
 const (
 	BlockType        Type = "Block"
 	ReadVarType      Type = "ReadVar"
@@ -22,12 +26,14 @@ const (
 	StringType       Type = "String"
 )
 
+// stores all variables and their values that can be accessed in the current scope
 var variables map[string]interface{} = make(map[string]interface{})
 
+// the interface that every expression that can occur in our AST implements
 type Expr interface {
 	Print() string
-	Eval() interface{}
-	Type() Type
+	Eval() interface{} // used to execute the code the AST represents
+	Type() Type        // the typechecker uses this to easily access the type of an expression
 }
 
 type Block struct {
@@ -47,13 +53,16 @@ func (b Block) Print() string {
 }
 
 func (b Block) Eval() interface{} {
+	// saving the variables of the outer scope
 	outerscopeVars := map[string]interface{}{}
 	for k, v := range variables {
 		outerscopeVars[k] = v
 	}
+	// executing the code inside the block
 	for _, expr := range b.Statements {
 		expr.Eval()
 	}
+	// restoring the variables after exiting the block to "delete" the variables defined in the scope of the current block
 	variables = outerscopeVars
 	return nil
 }
@@ -105,10 +114,12 @@ type Operator struct {
 func (op Operator) Print() string {
 	return op.FirstExp.Print() + " " + op.Symbol + " " + op.SecondExp.Print()
 }
-func (op Operator) Eval() interface{} { //idk how to cast these correctly
+func (op Operator) Eval() interface{} {
+	// getting the primitive value of both expressions
 	firstExp := op.FirstExp.Eval()
 	secondExp := op.SecondExp.Eval()
 
+	// performing the operation
 	switch operator := op.Symbol; operator {
 	case "+":
 		switch firstExp.(type) {
@@ -235,6 +246,7 @@ func (f FunctionCall) Print() string {
 }
 
 func (f FunctionCall) Eval() interface{} {
+	//we only allow the functions println and readln
 	if f.Name == "println" {
 		println(f.Argument.Eval().(string))
 	} else if f.Name == "readln" {
