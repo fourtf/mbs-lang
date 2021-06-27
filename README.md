@@ -100,7 +100,7 @@ type Parser func(string) (string, error)
 ```
 Dieser Typ ist eine Funktion, die den Code als String-Parameter annimmt. Ein Parser kann jedoch nicht immer den ganzen String auswerten, da ja nach dem relevanten Teil noch weitere folgen kann. Beispielsweise möchte ein String-Parser ja nur einen String auslesen, den Rest des Codes jedoch ignorieren. Aus diesem Grund wird der restliche Code als String zusammen mit einem Fehler zurückgegeben. Der Aufruf von einer Parser-Funktion nimmt also am Anfang des Codes einen Teil des String weg.
 
-Da Go keine Generics hat kann ein Parser-Funktion keinen speziellen Typ zurückgeben, da die Signatur der Funktion sonst dem "Parser"-Typ nicht mehr entspricht. Deswegen werden Resultate von einzelnen Parser-Funktionen hier als Out-Parameter übergeben. Beispielsweise schreibt die Funktion `name` den gelesenen Namen an die Addresse, die mittels dem Parameter `out` übergeben wurde. Da immer nur einzelne Codeteile wie z.B. eine "for"-Schleife mit Parserkombinatoren ausgewertet werden, funktioniert dies gut.
+Da Go keine Generics hat kann ein Parser-Funktion keinen speziellen Typ zurückgeben, da die Signatur der Funktion sonst dem "Parser"-Typ nicht mehr entspricht. Deswegen werden Resultate von einzelnen Parser-Funktionen hier als Out-Parameter übergeben. Beispielsweise schreibt die Funktion `name` den gelesenen Namen an die Adresse, die mittels dem Parameter `out` übergeben wurde. Da immer nur einzelne Codeteile wie z.B. eine "for"-Schleife mit Parserkombinatoren ausgewertet werden, funktioniert dies gut.
 
 #### Lesen von einzelnen Begriffen
 
@@ -111,7 +111,7 @@ func name(out *string) Parser
 
 Die Funktion `token` akzeptiert nur eine spezielles Wort am Anfang des Strings. Dieses wird der Funktion übergeben.
 
-`name` liest einen einzelnen Namen (bsp. Variablenname) aus und schreib ihn an die Addresse in `out`.
+`name` liest einen einzelnen Namen (bsp. Variablenname) aus und schreib ihn an die Adresse in `out`.
 
 #### Lesen von Ausdrücken
 
